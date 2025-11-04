@@ -7,11 +7,7 @@ git clone https://$github/sbwml/autocore-arm -b openwrt-24.10 package/system/aut
 
 # rockchip - target - r4s/r5s only
 rm -rf target/linux/rockchip
-if [ "$(whoami)" = "sbwml" ]; then
-    git clone https://$gitea/sbwml/target_linux_rockchip-6.x target/linux/rockchip -b openwrt-24.10
-else
-    git clone https://"$git_name":"$git_password"@$gitea/sbwml/target_linux_rockchip-6.x target/linux/rockchip -b openwrt-24.10
-fi
+git clone https://$github/dd-ray/target_linux_rockchip-6.x target/linux/rockchip -b openwrt-24.10
 
 # bpf-headers - 6.12
 sed -ri "s/(PKG_PATCHVER:=)[^\"]*/\16.12/" package/kernel/bpf-headers/Makefile
@@ -44,15 +40,11 @@ curl -s $mirror/openwrt/patch/kernel-6.12/openwrt/linux-6.12-target-linux-generi
 local_kernel_version=$(sed -n 's/^LINUX_KERNEL_HASH-\([0-9.]\+\) = .*/\1/p' include/kernel-6.12)
 release_kernel_version=$(curl -sL https://raw.githubusercontent.com/sbwml/r4s_build_script/master/tags/kernel-6.12 | sed -n 's/^LINUX_KERNEL_HASH-\([0-9.]\+\) = .*/\1/p')
 if [ "$local_kernel_version" = "$release_kernel_version" ] && [ -z "$git_password" ] && [ "$(whoami)" != "sbwml" ]; then
-    git clone https://$github/sbwml/target_linux_generic -b openwrt-24.10 target/linux/generic-6.12 --depth=1
+    git clone https://$github/dd-ray/target_linux_generic -b openwrt-24.10 target/linux/generic-6.13 --depth=1
 else
-    if [ "$(whoami)" = "sbwml" ]; then
-        git clone https://$gitea/sbwml/target_linux_generic -b openwrt-24.10 target/linux/generic-6.12 --depth=1
-    else
-        git clone https://"$git_name":"$git_password"@$gitea/sbwml/target_linux_generic -b openwrt-24.10 target/linux/generic-6.12 --depth=1
-    fi
+    git clone https://$github/dd-ray/target_linux_generic -b openwrt-24.10 target/linux/generic-6.13 --depth=1
 fi
-cp -a target/linux/generic-6.12/* target/linux/generic
+cp -a target/linux/generic-6.13/* target/linux/generic
 
 # bcm53xx - fix build kernel with clang
 [ "$platform" = "bcm53xx" ] && [ "$KERNEL_CLANG_LTO" = "y" ] && rm -f target/linux/generic/hack-6.6/220-arm-gc_sections.patch target/linux/generic/hack-6.12/220-arm-gc_sections.patch
