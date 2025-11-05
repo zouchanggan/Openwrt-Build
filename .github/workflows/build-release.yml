@@ -116,6 +116,14 @@ jobs:
         echo "Cache restored successfully"
         echo "Cache restored from key: ${{ github.event.inputs.device }}"
 
+    - name: Load Custom Configuration
+      working-directory: /builder
+      run: |
+        cd $OPENWRT_PATH
+        curl -s http://127.0.0.1:8080/configs/rockchip.config > .config
+        curl -s http://127.0.0.1:8080/scripts/feeds.conf.default > feeds.conf.default
+        bash <(curl -sS http://127.0.0.1:8080/build.sh)
+
     - name: Compile OpenWrt
       working-directory: /builder
       id: compile
