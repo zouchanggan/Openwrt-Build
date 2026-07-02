@@ -1,18 +1,36 @@
 #!/bin/bash -e
 
-# golang 1.25
+# golang 1.26
 rm -rf feeds/packages/lang/golang
-git clone https://$github/sbwml/packages_lang_golang -b 25.x feeds/packages/lang/golang
+git clone https://$github/sbwml/packages_lang_golang -b 26.x feeds/packages/lang/golang
+
+# rust
+rm -rf feeds/packages/lang/rust
+git clone https://$github/sbwml/packages_lang_rust feeds/packages/lang/rust
 
 # node - prebuilt
 rm -rf feeds/packages/lang/node
-git clone https://$github/sbwml/feeds_packages_lang_node-prebuilt feeds/packages/lang/node -b packages-24.10
+git clone https://$github/sbwml/feeds_packages_lang_node feeds/packages/lang/node -b packages-25.12
 
 # default settings
-git clone https://$github/sbwml/default-settings package/new/default-settings -b openwrt-24.10
+git clone https://$github/sbwml/default-settings package/new/default-settings -b openwrt-25.12
 
 # wwan
 git clone https://$github/sbwml/wwan-packages package/new/wwan --depth=1
+
+# bluetooth
+git clone https://$github/sbwml/luci-app-bluetooth package/new/luci-app-bluetooth
+git clone https://$github/sbwml/package_new_bluez-alsa package/new/bluez-alsa
+
+# bandix
+git clone https://$github/timsaya/openwrt-bandix package/new/bandix --depth=1
+git clone https://$github/timsaya/luci-app-bandix package/new/luci-app-bandix --depth=1
+
+# luci-app-diskman
+git clone https://$github/sbwml/luci-app-diskman package/new/diskman --depth=1
+
+# istore
+git clone https://$github/sbwml/package_new_istore package/new/istore --depth=1
 
 # luci-app-filemanager
 rm -rf feeds/luci/applications/luci-app-filemanager
@@ -42,10 +60,6 @@ curl -s $mirror/openwrt/patch/pcre/Config.in > package/libs/pcre/Config.in
 rm -rf feeds/packages/utils/lrzsz
 git clone https://$github/sbwml/packages_utils_lrzsz package/new/lrzsz
 
-# irqbalance: disable build with numa
-curl -s $mirror/openwrt/patch/irqbalance/011-meson-numa.patch > feeds/packages/utils/irqbalance/patches/011-meson-numa.patch
-sed -i '/-Dcapng=disabled/i\\t-Dnuma=disabled \\' feeds/packages/utils/irqbalance/Makefile
-
 # frpc
 sed -i 's/procd_set_param stdout $stdout/procd_set_param stdout 0/g' feeds/packages/net/frp/files/frpc.init
 sed -i 's/procd_set_param stderr $stderr/procd_set_param stderr 0/g' feeds/packages/net/frp/files/frpc.init
@@ -66,8 +80,8 @@ pushd feeds/luci
 popd
 
 # samba4 - bump version
-rm -rf feeds/packages/net/samba4
-git clone https://$github/sbwml/feeds_packages_net_samba4 feeds/packages/net/samba4
+#rm -rf feeds/packages/net/samba4
+#git clone https://$github/sbwml/feeds_packages_net_samba4 feeds/packages/net/samba4
 # enable multi-channel
 sed -i '/workgroup/a \\n\t## enable multi-channel' feeds/packages/net/samba4/files/smb.conf.template
 sed -i '/enable multi-channel/a \\tserver multi channel support = yes' feeds/packages/net/samba4/files/smb.conf.template
@@ -87,13 +101,6 @@ sed -i 's/0666/0644/g;s/0777/0755/g' feeds/packages/net/samba4/files/smb.conf.te
 # zerotier
 rm -rf feeds/packages/net/zerotier
 git clone https://$github/sbwml/feeds_packages_net_zerotier feeds/packages/net/zerotier
-
-# aria2 & ariaNG
-rm -rf feeds/packages/net/ariang
-rm -rf feeds/luci/applications/luci-app-aria2
-git clone https://$github/sbwml/ariang-nginx package/new/ariang-nginx
-rm -rf feeds/packages/net/aria2
-git clone https://$github/sbwml/feeds_packages_net_aria2 -b 22.03 feeds/packages/net/aria2
 
 # airconnect
 git clone https://$github/sbwml/luci-app-airconnect package/new/airconnect --depth=1
@@ -122,13 +129,17 @@ git clone https://$github/UnblockNeteaseMusic/luci-app-unblockneteasemusic packa
 sed -i 's/解除网易云音乐播放限制/网易云音乐解锁/g' package/new/luci-app-unblockneteasemusic/root/usr/share/luci/menu.d/luci-app-unblockneteasemusic.json
 
 # Theme
-git clone https://$github/sbwml/luci-theme-argon package/new/luci-theme-argon --depth=1
+git clone https://$github/sbwml/luci-theme-argon -b openwrt-25.12 package/new/luci-theme-argon --depth=1
+git clone https://$github/eamonxg/luci-theme-aurora package/new/luci-theme-aurora --depth=1
+git clone https://$github/eamonxg/luci-app-aurora-config package/new/luci-app-aurora-config --depth=1
+rm -rf package/new/luci-theme-aurora/root/etc/uci-defaults
+sed -i 's/100/85/g' package/new/luci-app-aurora-config/root/usr/share/luci/menu.d/luci-app-aurora.json
 
 # Mosdns
 git clone https://$github/sbwml/luci-app-mosdns -b v5 package/new/mosdns --depth=1
 
 # OpenAppFilter
-git clone https://$github/sbwml/OpenAppFilter --depth=1 package/new/OpenAppFilter -b v6
+git clone https://$github/sbwml/OpenAppFilter --depth=1 package/new/OpenAppFilter -b main
 
 # iperf3
 sed -i "s/D_GNU_SOURCE/D_GNU_SOURCE -funroll-loops/g" feeds/packages/net/iperf3/Makefile
@@ -143,23 +154,15 @@ git clone https://$github/sbwml/luci-app-mentohust package/new/mentohust
 # custom packages
 rm -rf feeds/packages/utils/coremark
 git clone https://$github/sbwml/openwrt_pkgs package/new/custom --depth=1
+rm -rf package/new/custom/ddns-scripts-aliyun
 # coremark - prebuilt with gcc15
-if [ "$platform" = "rk3568" ]; then
-    curl -s $mirror/openwrt/patch/coremark/coremark.aarch64-4-threads > package/new/custom/coremark/src/musl/coremark.aarch64
-elif [ "$platform" = "rk3576" ]; then
-    curl -s $mirror/openwrt/patch/coremark/coremark.aarch64-16-threads > package/new/custom/coremark/src/musl/coremark.aarch64
-elif [ "$platform" = "rk3399" ]; then
-    curl -s $mirror/openwrt/patch/coremark/coremark.aarch64-6-threads > package/new/custom/coremark/src/musl/coremark.aarch64
-elif [ "$platform" = "armv8" ]; then
-    curl -s $mirror/openwrt/patch/coremark/coremark.aarch64-16-threads > package/new/custom/coremark/src/musl/coremark.aarch64
-fi
+curl -s $mirror/openwrt/patch/coremark/coremark.aarch64-16-threads > package/new/custom/coremark/src/musl/coremark.aarch64
 
 # luci-compat - fix translation
 sed -i 's/<%:Up%>/<%:Move up%>/g' feeds/luci/modules/luci-compat/luasrc/view/cbi/tblsection.htm
 sed -i 's/<%:Down%>/<%:Move down%>/g' feeds/luci/modules/luci-compat/luasrc/view/cbi/tblsection.htm
 
 # frpc translation
-sed -i 's,发送,Transmission,g' feeds/luci/applications/luci-app-transmission/po/zh_Hans/transmission.po
 sed -i 's,frp 服务器,Frp 服务器,g' feeds/luci/applications/luci-app-frps/po/zh_Hans/frps.po
 sed -i 's,frp 客户端,Frp 客户端,g' feeds/luci/applications/luci-app-frpc/po/zh_Hans/frpc.po
 
@@ -180,3 +183,6 @@ true > feeds/packages/utils/watchcat/files/watchcat.config
 # libpcap
 rm -rf package/libs/libpcap
 git clone https://$github/sbwml/package_libs_libpcap package/libs/libpcap
+
+# sqm-scripts
+curl -s $mirror/openwrt/patch/sqm-scripts/Makefile > feeds/packages/net/sqm-scripts/Makefile
