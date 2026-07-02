@@ -12,7 +12,7 @@ on:
           - 'armv8'
           - 'nanopi-r4s'
           - 'nanopi-r5s'
-          - 'cudy_tr3000'
+          - 'nanopi-r76s'
           - 'x86_64'
       version:
         description: 'Select the build version'
@@ -21,20 +21,25 @@ on:
         type: choice
         options:
           - 'release'
-          - 'snapshot-24.10'
+          - 'snapshot-25.12'
       ccache:
         description: 'Enable ccache (Use Cache to speed up next build)'
         type: boolean
-        default: true
+        default: false
       lan_addr:
         description: 'Setting default LAN address'
         required: true
         default: '10.0.0.1'
         type: string
+      root_password:
+        description: 'Setting default root password (Optional, No password by default)'
+        required: false
+        default: ''
+        type: string
       build_options:
         description: 'Build options (separate multiple options with spaces)'
         required: false
-        default: 'BUILD_FAST=y ENABLE_BPF=y ENABLE_LTO=y ENABLE_LRNG=y ENABLE_MOLD=y KERNEL_CLANG_LTO=y NO_KMOD=y'
+        default: 'BUILD_FAST=y ENABLE_BPF=y ENABLE_LTO=y ENABLE_LRNG=y ENABLE_MOLD=y KERNEL_CLANG_LTO=y'
         type: string
 
 jobs:
@@ -50,7 +55,7 @@ jobs:
       continue-on-error: true
       uses: actions/checkout@main
       with:
-        path: OpenWrt
+        path: r4s_build_script
 
     - name: Setup variables
       run: |
@@ -76,10 +81,10 @@ jobs:
 
     - name: Install Caddy Server
       run: |
-        sudo curl -sL -o /usr/bin/caddy https://github.com/OPPEN321/OpenWrt/releases/download/caddy/caddy
+        sudo curl -sL -o /usr/bin/caddy https://github.com/sbwml/r4s_build_script/releases/download/caddy/caddy
         sudo chmod 755 /usr/bin/caddy
         echo ":8080 {" > caddyfile
-        echo "    root * $(pwd)/OpenWrt" >> caddyfile
+        echo "    root * $(pwd)/r4s_build_script" >> caddyfile
         echo "    file_server browse" >> caddyfile
         echo "}" >> caddyfile
         sudo /usr/bin/caddy start --config caddyfile --adapter caddyfile
@@ -97,10 +102,10 @@ jobs:
 
     - name: Restore Cached
       if: ${{ github.event.inputs.ccache == 'true' && github.event.inputs.device != 'armv8' && github.event.inputs.device != 'nanopi-r4s' }}
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@main
       with:
         path: /builder/.ccache
-        key: openwrt-24.10-${{ github.event.inputs.device }}-ccache
+        key: openwrt-25.12-${{ github.event.inputs.device }}-ccache
 
     - name: Restore Cached (releases)
       if: ${{ github.event.inputs.ccache == 'true' && github.event.inputs.device == 'armv8' || github.event.inputs.device == 'nanopi-r4s' }}
@@ -120,15 +125,19 @@ jobs:
       working-directory: /builder
       id: compile
       continue-on-error: true
+      env:
+        git_name: ${{ secrets.username }}
+        git_password: ${{ secrets.password }}
       run: |
         export ${{ github.event.inputs.build_options }} LAN=${{ github.event.inputs.lan_addr }} USE_GCC15=y
         [ ${{ github.event.inputs.ccache }} = 'true' ] && export ENABLE_CCACHE=y
+        [ -n ${{ github.event.inputs.root_password }} ] && export ROOT_PASSWORD="${{ github.event.inputs.root_password }}"
         bash <(curl -sS http://127.0.0.1:8080/build.sh) ${{ env.build_version }} ${{ github.event.inputs.device }}
         cd openwrt
         if [ "${{ github.event.inputs.version }}" = release ]; then
           tags=OpenWrt-$(git describe --abbrev=0 --tags)
         else
-          tags=snapshot-24.10-$(git log -n 1 --date=format:"%Y%m%d" --format="%cd")-$(git log --pretty=format:"%h" -1)
+          tags=snapshot-25.12-$(git log -n 1 --date=format:"%Y%m%d" --format="%cd")-$(git log --pretty=format:"%h" -1)
         fi
         echo "latest_release=$tags" >>$GITHUB_ENV
 
@@ -147,15 +156,15 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_REPO: ${{ github.repository }}
       run: |
-        gh cache delete openwrt-24.10-${{ github.event.inputs.device }}-ccache || true
+        gh cache delete openwrt-25.12-${{ github.event.inputs.device }}-ccache || true
 
     - name: Save Cached
       if: ${{ github.event.inputs.ccache == 'true' && github.event.inputs.device != 'armv8' && github.event.inputs.device != 'nanopi-r4s' }}
       continue-on-error: true
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@main
       with:
         path: /builder/.ccache
-        key: openwrt-24.10-${{ github.event.inputs.device }}-ccache
+        key: openwrt-25.12-${{ github.event.inputs.device }}-ccache
 
     - name: Create ccache tar files
       if: ${{ github.event.inputs.ccache == 'true' && github.event.inputs.device == 'armv8' || github.event.inputs.device == 'nanopi-r4s' }}
@@ -168,7 +177,7 @@ jobs:
     - name: Upload Cached (releases - ccache)
       if: ${{ github.event.inputs.ccache == 'true' && github.event.inputs.device == 'armv8' || github.event.inputs.device == 'nanopi-r4s' }}
       continue-on-error: true
-      uses: ncipollo/release-action@v1.14.0
+      uses: ncipollo/release-action@main
       with:
         name: ccache
         allowUpdates: true
@@ -184,12 +193,7 @@ jobs:
       working-directory: /builder
       run: |
         mkdir -p rom info
-        if [ "${{ github.event.inputs.device }}" = "nanopi-r4s" ]; then
-          cp -a openwrt/bin/targets/rockchip/*/*.img.gz rom/
-          cp -a openwrt/bin/targets/rockchip/*/*-r4s.manifest info/manifest.txt
-          cp -a openwrt/bin/targets/rockchip/*/config.buildinfo info/config.buildinfo
-          cd rom && sha256sum *gz > ../info/sha256sums.txt
-        elif [ "${{ github.event.inputs.device }}" = "nanopi-r5s" ]; then
+        if [[ "${{ github.event.inputs.device }}" == nanopi-* ]]; then
           cp -a openwrt/bin/targets/rockchip/*/*.img.gz rom/
           cp -a openwrt/bin/targets/rockchip/*/*.manifest info/manifest.txt
           cp -a openwrt/bin/targets/rockchip/*/config.buildinfo info/config.buildinfo
@@ -201,12 +205,6 @@ jobs:
           cp -a openwrt/bin/targets/x86/*/*-x86-64-generic.manifest info/manifest.txt
           cp -a openwrt/bin/targets/x86/*/config.buildinfo info/config.buildinfo
           cd rom && sha256sum *gz > ../info/sha256sums.txt
-        elif [ "${{ github.event.inputs.device }}" = "cudy_tr3000" ]; then
-          cp -a openwrt/bin/targets/mediatek/filogic/*-mediatek-filogic-cudy_tr3000-v1-squashfs.bin rom/
-          cp -a openwrt/bin/targets/mediatek/filogic/*-mediatek-filogic-cudy_tr3000-v1-initramfs-kernel.bin  rom/
-          cp -a openwrt/bin/targets/mediatek/filogic/*.manifest info/manifest.txt
-          cp -a openwrt/bin/targets/mediatek/filogic/config.buildinfo info/config.buildinfo
-          cd rom && sha256sum * > ../info/sha256sums.txt
         elif [ "${{ github.event.inputs.device }}" = "armv8" ]; then
           tar zcf rom/u-boot-qemu_armv8.tar.gz -C openwrt/bin/targets/armsr/armv8*/ ./u-boot-qemu_armv8
           cp -a openwrt/bin/targets/armsr/armv8*/*-generic-initramfs-kernel.bin rom/
@@ -220,14 +218,14 @@ jobs:
         fi
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@main
       with:
         name: ${{ github.event.inputs.device }}-openwrt-${{ env.latest_release }}
         path: ${{ env.build_dir }}/rom/*
 
     - name: Create release
       continue-on-error: true
-      uses: ncipollo/release-action@v1
+      uses: ncipollo/release-action@main
       with:
         name: ${{ env.latest_release }}
         allowUpdates: true
