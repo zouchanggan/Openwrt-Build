@@ -97,12 +97,7 @@ elif [ "$1" = "rc2" ]; then
 fi
 
 # lan
-export LAN="${LAN:-192.168.1.10}"
-export LAN_GATEWAY="${LAN_GATEWAY:-192.168.1.1}"
-export LAN_DNS="${LAN_DNS:-192.168.1.1}"
-
-# mihomo_core (从环境变量读取，默认 meta)
-export mihomo_core="${mihomo_core:-meta}"
+[ -n "$LAN" ] && export LAN=$LAN || export LAN=10.0.0.1
 
 # platform
 case "$2" in
@@ -196,9 +191,7 @@ print_status() {
         echo -e "${GREEN_COLOR}${name}:${RES} ${false_color}false${RES}${newline}"
     fi
 }
-echo -e "${GREEN_COLOR}LAN:${RES} $LAN"
-echo -e "${GREEN_COLOR}LAN Gateway:${RES} $LAN_GATEWAY"
-echo -e "${GREEN_COLOR}LAN DNS:${RES} $LAN_DNS"
+[ -n "$LAN" ] && echo -e "${GREEN_COLOR}LAN:${RES} $LAN" || echo -e "${GREEN_COLOR}LAN:${RES} 10.0.0.1"
 [ -n "$ROOT_PASSWORD" ] \
     && echo -e "${GREEN_COLOR}Default Password:${RES} ${BLUE_COLOR}$ROOT_PASSWORD${RES}" \
     || echo -e "${GREEN_COLOR}Default Password:${RES} (${YELLOW_COLOR}No password${RES})"
@@ -284,8 +277,6 @@ scripts=(
   03-convert_translation.sh
   04-fix_kmod.sh
   05-fix-source.sh
-  06-prepare_adguard_core.sh
-  07-preset_mihomo_core.sh
   99_clean_build_cache.sh
 )
 for script in "${scripts[@]}"; do
@@ -303,24 +294,10 @@ bash 01-prepare_base-mainline.sh
 bash 02-prepare_package.sh
 bash 04-fix_kmod.sh
 bash 05-fix-source.sh
-bash 06-prepare_adguard_core.sh
-bash 07-preset_mihomo_core.sh
 [ -f "10-custom.sh" ] && bash 10-custom.sh
 find feeds -type f -name "*.orig" -exec rm -f {} \;
 [ "$(whoami)" = "runner" ] && endgroup
-echo -e "\n${GREEN_COLOR}Inject default network settings ...${RES}"
-echo -e "${GREEN_COLOR}LAN:${RES} ${LAN}"
-echo -e "${GREEN_COLOR}LAN_GATEWAY:${RES} ${LAN_GATEWAY}"
-echo -e "${GREEN_COLOR}LAN_DNS:${RES} ${LAN_DNS}"
-find . -type f -name "zzz-default-settings" -print -exec \
-    sed -i \
-        -e "s|__LAN_ADDR__|${LAN}|g" \
-        -e "s|__LAN_GATEWAY__|${LAN_GATEWAY}|g" \
-        -e "s|__LAN_DNS__|${LAN_DNS}|g" \
-        {} \;
-echo -e "\n${GREEN_COLOR}Check zzz-default-settings:${RES}"
-find . -type f -name "zzz-default-settings" -exec \
-    grep -n "LAN_ADDR\|LAN_GATEWAY\|LAN_DNS\|network.lan.ipaddr\|network.lan.gateway\|network.lan.dns" {} \; || true
+
 rm -f 0*-*.sh 10-custom.sh
 
 # Load devices Config
@@ -347,12 +324,6 @@ else
     curl -s $mirror/openwrt/25-config-common >> .config
     [ "$platform" = "armv8" ] && sed -i '/DOCKER/Id' .config
 fi
-
-# AdGuardHome
-sed -i '/CONFIG_PACKAGE_adguardhome/d' .config
-cat >> .config <<EOF
-CONFIG_PACKAGE_adguardhome=y
-EOF
 
 # ota
 [ "$ENABLE_OTA" = "y" ] && [ "$version" = "rc2" ] && echo 'CONFIG_PACKAGE_luci-app-ota=y' >> .config
@@ -450,18 +421,15 @@ fi
 # Toolchain Cache
 if [ "$BUILD_FAST" = "y" ]; then
     [ "$ENABLE_GLIBC" = "y" ] && LIBC=glibc || LIBC=musl
-    [ "$isCN" = "CN" ] && github_proxy="ghp.ci/" || github_proxy=""
     echo -e "\n${GREEN_COLOR}Download Toolchain ...${RES}"
     PLATFORM_ID=""
     [ -f /etc/os-release ] && source /etc/os-release
     if [ "$PLATFORM_ID" = "platform:el10" ]; then
         TOOLCHAIN_URL="http://127.0.0.1:8080"
     else
-        TOOLCHAIN_URL=https://"$github_proxy"github.com/grandway2025/Toolchain-Cache/releases/download/openwrt-25.12
+        TOOLCHAIN_URL=https://"$github_proxy"github.com/sbwml/openwrt_caches/releases/download/openwrt-25.12
     fi
     curl -L ${TOOLCHAIN_URL}/toolchain_${LIBC}_${toolchain_arch}_gcc-${gcc_version}${tools_suffix}.tar.zst -o toolchain.tar.zst $CURL_BAR
-    echo -e "\n${GREEN_COLOR}Downloaded toolchain:${RES}"
-    ls -lh toolchain.tar.zst
     echo -e "\n${GREEN_COLOR}Process Toolchain ...${RES}"
     tar -I "zstd" -xf toolchain.tar.zst
     rm -f toolchain.tar.zst
