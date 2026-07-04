@@ -98,6 +98,7 @@ fi
 
 # lan
 export LAN="${LAN:-192.168.1.10}"
+export LAN_ADDR="${LAN_ADDR:-$LAN}"
 export LAN_GATEWAY="${LAN_GATEWAY:-192.168.1.1}"
 export LAN_DNS="${LAN_DNS:-192.168.1.1}"
 
@@ -196,9 +197,10 @@ print_status() {
         echo -e "${GREEN_COLOR}${name}:${RES} ${false_color}false${RES}${newline}"
     fi
 }
+
 echo -e "${GREEN_COLOR}LAN:${RES} $LAN"
-echo -e "${GREEN_COLOR}LAN Gateway:${RES} $LAN_GATEWAY"
-echo -e "${GREEN_COLOR}LAN DNS:${RES} $LAN_DNS"
+echo -e "${GREEN_COLOR}LAN_GATEWAY:${RES} $LAN_GATEWAY"
+echo -e "${GREEN_COLOR}LAN_DNS:${RES} $LAN_DNS"
 [ -n "$ROOT_PASSWORD" ] \
     && echo -e "${GREEN_COLOR}Default Password:${RES} ${BLUE_COLOR}$ROOT_PASSWORD${RES}" \
     || echo -e "${GREEN_COLOR}Default Password:${RES} (${YELLOW_COLOR}No password${RES})"
@@ -289,7 +291,7 @@ scripts=(
   99_clean_build_cache.sh
 )
 for script in "${scripts[@]}"; do
-  curl -sO "$mirror/openwrt/scripts/$script"
+  curl -fsSLO "$mirror/openwrt/scripts/$script"
 done
 if [ -n "$git_password" ] && [ -n "$private_url" ]; then
     curl -u openwrt:$git_password -sO "$private_url"
@@ -350,9 +352,7 @@ fi
 
 # AdGuardHome
 sed -i '/CONFIG_PACKAGE_adguardhome/d' .config
-cat >> .config <<EOF
-CONFIG_PACKAGE_adguardhome=y
-EOF
+echo 'CONFIG_PACKAGE_adguardhome=y' >> .config
 
 # ota
 [ "$ENABLE_OTA" = "y" ] && [ "$version" = "rc2" ] && echo 'CONFIG_PACKAGE_luci-app-ota=y' >> .config
