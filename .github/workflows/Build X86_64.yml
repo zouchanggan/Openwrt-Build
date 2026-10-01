@@ -309,14 +309,8 @@ jobs:
         export KERNEL_VERSION="${KERNEL_VERSION:-unknown}"
         export GCC_VERSION="${GCC_VERSION:-${selected_gcc:-unknown}}"
         export WEB_SERVER="${WEB_SERVER:-unknown}"
-        release_info_script="${GITHUB_WORKSPACE}/r4s_build_script/scripts/gen-release-info.sh"
-        if [ ! -f "${release_info_script}" ]; then
-          echo "Error: release info script not found: ${release_info_script}"
-          find "${GITHUB_WORKSPACE}/r4s_build_script" -name 'gen-release-info.sh' -print
-          exit 1
-        fi
-        chmod +x "${release_info_script}"
-        "${release_info_script}"
+        chmod +x "${GITHUB_WORKSPACE}/r4s_build_script/openwrt/scripts/gen-release-info.sh"
+        "${GITHUB_WORKSPACE}/r4s_build_script/openwrt/scripts/gen-release-info.sh"
         cat /builder/info/summary.md >> "$GITHUB_STEP_SUMMARY"
         
     - name: Upload artifacts
