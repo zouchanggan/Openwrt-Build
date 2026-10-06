@@ -48,7 +48,7 @@ on:
       gcc_version:
         description: 'GCC version'
         required: true
-        default: 'GCC15'
+        default: 'GCC16'
         type: choice
         options:
           - 'GCC14'
