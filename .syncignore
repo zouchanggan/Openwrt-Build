@@ -17,5 +17,8 @@ LICENSE
 /openwrt/scripts/00-prepare_base.sh
 /openwrt/scripts/01-prepare_base-mainline.sh
 /openwrt/scripts/02-prepare_package.sh
+/openwrt/scripts/06-prepare_adguard_core.sh
+/openwrt/scripts/07-preset_mihomo_core.sh
+/openwrt/scripts/gen-release-info.sh
 # --- [模板] 未来要保护新目录，复制下行去掉 # 即可 ---
 # /sing-box/
