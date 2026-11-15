@@ -14,6 +14,8 @@ LICENSE
 # /openwrt/25-config-common
 # --- [注释不生效] 锁定自维护的目录 ---
 # /xray-core/
-/openwrt/scripts/
+/openwrt/scripts/00-prepare_base.sh
+/openwrt/scripts/01-prepare_base-mainline.sh
+/openwrt/scripts/02-prepare_package.sh
 # --- [模板] 未来要保护新目录，复制下行去掉 # 即可 ---
 # /sing-box/
