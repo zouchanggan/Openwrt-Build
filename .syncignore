@@ -11,7 +11,7 @@ LICENSE
 # --- [注释不生效] 我维护的补丁 ---
 # patch-*.patch
 /openwrt/build.sh
-# /openwrt/25-config-common
+/openwrt/25-config-common
 # --- [注释不生效] 锁定自维护的目录 ---
 # /xray-core/
 /openwrt/scripts/00-prepare_base.sh
